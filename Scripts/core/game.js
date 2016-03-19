@@ -209,27 +209,36 @@ var game = (function () {
         }
         for (var k = 0; k < directions.length; k++) {
             console.log(directions[k]);
-            switch (directions[k]) {
-                case 0:
-                    buildBadPathway(new Vector3(-1, 0, 0), k);
-                    buildBadPathway(new Vector3(0, 0, 1), k);
-                    buildBadPathway(new Vector3(0, 0, -1), k);
-                    break;
-                case 1:
-                    buildBadPathway(new Vector3(0, 0, -1), k);
-                    buildBadPathway(new Vector3(1, 0, 0), k);
-                    buildBadPathway(new Vector3(-1, 0, 0), k);
-                    break;
-                case 2:
-                    buildBadPathway(new Vector3(1, 0, 0), k);
-                    buildBadPathway(new Vector3(0, 0, 1), k);
-                    buildBadPathway(new Vector3(0, 0, -1), k);
-                    break;
-                case 3:
-                    buildBadPathway(new Vector3(0, 0, 1), k);
-                    buildBadPathway(new Vector3(-1, 0, 0), k);
-                    buildBadPathway(new Vector3(1, 0, 0), k);
-                    break;
+            if (k == 0 || k == directions.length - 1) {
+                console.log("first or last");
+                switch (directions[k]) {
+                    case 0:
+                        buildBadPathway(new Vector3(-1, 0, 0), k);
+                        buildBadPathway(new Vector3(0, 0, 1), k);
+                        buildBadPathway(new Vector3(0, 0, -1), k);
+                        break;
+                    case 1:
+                        buildBadPathway(new Vector3(0, 0, -1), k);
+                        buildBadPathway(new Vector3(1, 0, 0), k);
+                        buildBadPathway(new Vector3(-1, 0, 0), k);
+                        break;
+                    case 2:
+                        buildBadPathway(new Vector3(1, 0, 0), k);
+                        buildBadPathway(new Vector3(0, 0, 1), k);
+                        buildBadPathway(new Vector3(0, 0, -1), k);
+                        break;
+                    case 3:
+                        buildBadPathway(new Vector3(0, 0, 1), k);
+                        buildBadPathway(new Vector3(-1, 0, 0), k);
+                        buildBadPathway(new Vector3(1, 0, 0), k);
+                        break;
+                }
+            }
+            else {
+                console.log("middle");
+                var cur = directions[k];
+                var prev = directions[k - 1];
+                console.log("middle grounds: " + cur + " + " + prev);
             }
         }
         // Player Object
@@ -374,7 +383,6 @@ var game = (function () {
         prevTime = time;
         // render using requestAnimationFrame
         requestAnimationFrame(gameLoop);
-        player.__dirtyPosition = true;
         // render the scene
         renderer.render(scene, camera);
     }
