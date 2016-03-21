@@ -70,6 +70,7 @@ var game = (function () {
     var directionLine;
     var grounds;
     var directions;
+    var badPaths;
     function init() {
         // Create to HTMLElements
         blocker = document.getElementById("blocker");
@@ -139,6 +140,7 @@ var game = (function () {
         //build main areas
         grounds = [];
         directions = [];
+        badPaths = [];
         var currentPos = new Vector3();
         var ready = true;
         var levels = 10;
@@ -209,36 +211,28 @@ var game = (function () {
         }
         for (var k = 0; k < directions.length; k++) {
             console.log(directions[k]);
-            if (k == 0 || k == directions.length - 1) {
-                console.log("first or last");
-                switch (directions[k]) {
-                    case 0:
-                        buildBadPathway(new Vector3(-1, 0, 0), k);
-                        buildBadPathway(new Vector3(0, 0, 1), k);
-                        buildBadPathway(new Vector3(0, 0, -1), k);
-                        break;
-                    case 1:
-                        buildBadPathway(new Vector3(0, 0, -1), k);
-                        buildBadPathway(new Vector3(1, 0, 0), k);
-                        buildBadPathway(new Vector3(-1, 0, 0), k);
-                        break;
-                    case 2:
-                        buildBadPathway(new Vector3(1, 0, 0), k);
-                        buildBadPathway(new Vector3(0, 0, 1), k);
-                        buildBadPathway(new Vector3(0, 0, -1), k);
-                        break;
-                    case 3:
-                        buildBadPathway(new Vector3(0, 0, 1), k);
-                        buildBadPathway(new Vector3(-1, 0, 0), k);
-                        buildBadPathway(new Vector3(1, 0, 0), k);
-                        break;
-                }
-            }
-            else {
-                console.log("middle");
-                var cur = directions[k];
-                var prev = directions[k - 1];
-                console.log("middle grounds: " + cur + " + " + prev);
+            console.log("first or last");
+            switch (directions[k]) {
+                case 0:
+                    buildBadPathway(new Vector3(-1, 0, 0), k);
+                    buildBadPathway(new Vector3(0, 0, 1), k);
+                    buildBadPathway(new Vector3(0, 0, -1), k);
+                    break;
+                case 1:
+                    buildBadPathway(new Vector3(0, 0, -1), k);
+                    buildBadPathway(new Vector3(1, 0, 0), k);
+                    buildBadPathway(new Vector3(-1, 0, 0), k);
+                    break;
+                case 2:
+                    buildBadPathway(new Vector3(1, 0, 0), k);
+                    buildBadPathway(new Vector3(0, 0, 1), k);
+                    buildBadPathway(new Vector3(0, 0, -1), k);
+                    break;
+                case 3:
+                    buildBadPathway(new Vector3(0, 0, 1), k);
+                    buildBadPathway(new Vector3(-1, 0, 0), k);
+                    buildBadPathway(new Vector3(1, 0, 0), k);
+                    break;
             }
         }
         // Player Object
@@ -284,12 +278,23 @@ var game = (function () {
         window.addEventListener('resize', onWindowResize, false);
     }
     function buildBadPathway(v3, par) {
+        for (var scn = 0; scene.children.length; scn++) {
+            if (scene.children[scn] != null) {
+                console.log("check");
+                if (scene.children[scn].position.clone().equals(grounds[par].position.clone().add(v3.multiplyScalar(12.5)))) {
+                    console.log("Cloned, not making");
+                    return;
+                }
+            }
+        }
+        console.log("out of loop");
         var path = new BoxGeometry(5, 1, 5);
         var pathMat = Physijs.createMaterial(groundMaterial, 0, 0);
         var gnd = new Physijs.ConvexMesh(path, pathMat, 0);
         gnd.position.add(grounds[par].position.clone().add(v3.multiplyScalar(12.5)));
         gnd.receiveShadow = true;
         gnd.name = "BadPath";
+        console.log("added path");
         scene.add(gnd);
     }
     //PointerLockChange Event Handler

@@ -77,6 +77,7 @@ var game = (() => {
     var directionLine: Line;
     var grounds: Physijs.Mesh[];
     var directions: number[];
+    var badPaths:string[];
 
     function init() {
         // Create to HTMLElements
@@ -164,6 +165,7 @@ var game = (() => {
         //build main areas
         grounds = [];
         directions = [];
+        badPaths = [];
         var currentPos:Vector3 = new Vector3();
         var ready = true;
         var levels:number = 10;
@@ -251,9 +253,7 @@ var game = (() => {
         
         for (var k = 0; k < directions.length; k++)
         {
-            console.log(directions[k]);
-            if (k == 0 || k == directions.length -1)
-            {
+                console.log(directions[k]);
                 console.log("first or last");
                 switch (directions[k])
                 {
@@ -279,48 +279,7 @@ var game = (() => {
                         break;
                 }
             }
-            else
-            {               
-                console.log("middle");
-                var cur = directions[k];
-                var prev = directions[k-1];
-                console.log("middle grounds: " + cur + " + " + prev);
-                /*
-                for (var l = 0; l < 4; l++)
-                {
-                    if (cur != l && prev != l)
-                    {
-                        switch (l)
-                        {
-                            case 0:
-                            {
-                                buildBadPathway(new Vector3(1,0,0), k);
-                                break;
-                            }
-                            case 1:
-                            {
-                                buildBadPathway(new Vector3(0,0,1), k);
-                                break;
-                            }
-                            case 2:
-                            {
-                                buildBadPathway(new Vector3(-1,0,0), k);
-                                break;
-                            }
-                            case 3:
-                            {
-                                buildBadPathway(new Vector3(0,0,-1), k);
-                                break;
-                            }
-                        }
-                    }
-                }
-                */
-                
-                
-                
-            }
-        }
+        
         
         // Player Object
         playerGeometry = new BoxGeometry(2, 2, 2);
@@ -375,12 +334,29 @@ var game = (() => {
 
     function buildBadPathway(v3:Vector3, par:number): void
     {
+        
+        for (var scn = 0; scene.children.length; scn++)
+        {
+            if (scene.children[scn] != null)
+            {
+                console.log("check");
+                if (scene.children[scn].position.clone().equals(grounds[par].position.clone().add(v3.multiplyScalar(12.5))))
+                {
+                    console.log("Cloned, not making");
+                    return;
+                }
+            }
+        }
+        
+    
+        console.log("out of loop");
         var path = new BoxGeometry(5, 1, 5);
         var pathMat = Physijs.createMaterial(groundMaterial, 0, 0);
         var gnd = new Physijs.ConvexMesh(path, pathMat, 0);
         gnd.position.add(grounds[par].position.clone().add(v3.multiplyScalar(12.5)));
         gnd.receiveShadow = true;
         gnd.name = "BadPath";
+        console.log("added path");
         
         scene.add(gnd);
     }
