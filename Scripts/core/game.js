@@ -20,8 +20,6 @@ var Object3D = THREE.Object3D;
 var SpotLight = THREE.SpotLight;
 var PointLight = THREE.PointLight;
 var AmbientLight = THREE.AmbientLight;
-var Control = objects.Control;
-var GUI = dat.GUI;
 var Color = THREE.Color;
 var Vector3 = THREE.Vector3;
 var Face3 = THREE.Face3;
@@ -41,8 +39,6 @@ var game = (function () {
     var scene = new Scene(); // Instantiate Scene Object
     var renderer;
     var camera;
-    var control;
-    var gui;
     var stats;
     var blocker;
     var instructions;
@@ -70,6 +66,21 @@ var game = (function () {
     var directionLine;
     var grounds;
     var directions;
+    var done = false;
+    //createjs
+    var assets;
+    var canvas;
+    var stage;
+    var manifest = [
+        { id: "tryagain", src: "../../Assets/sounds/try_again.ogg" },
+        { id: "welldone", src: "../../Assets/sounds/well_done.ogg" }
+    ];
+    function preload() {
+        assets = new createjs.LoadQueue();
+        assets.installPlugin(createjs.Sound);
+        assets.on("complete", init, this);
+        assets.loadManifest(manifest);
+    }
     function init() {
         // Create to HTMLElements
         blocker = document.getElementById("blocker");
@@ -110,24 +121,9 @@ var game = (function () {
         clock = new Clock();
         setupRenderer(); // setup the default renderer
         setupCamera(); // setup the camera
-        // Spot Light
-        spotLight = new SpotLight(0xffffff);
-        spotLight.position.set(20, 40, -15);
-        spotLight.castShadow = true;
-        spotLight.intensity = 2;
-        spotLight.lookAt(new Vector3(0, 0, 0));
-        spotLight.shadowCameraNear = 2;
-        spotLight.shadowCameraFar = 200;
-        spotLight.shadowCameraLeft = -5;
-        spotLight.shadowCameraRight = 5;
-        spotLight.shadowCameraTop = 5;
-        spotLight.shadowCameraBottom = -5;
-        spotLight.shadowMapWidth = 2048;
-        spotLight.shadowMapHeight = 2048;
-        spotLight.shadowDarkness = 0.5;
-        spotLight.name = "Spot Light";
-        scene.add(spotLight);
-        console.log("Added spotLight to scene");
+        // Ambient Light
+        var ambientLight = new THREE.AmbientLight(0x404040);
+        scene.add(ambientLight);
         // Burnt Ground
         groundTexture = new THREE.TextureLoader().load('../../Assets/grass_top.png');
         groundTexture.wrapS = THREE.RepeatWrapping;
@@ -149,11 +145,19 @@ var game = (function () {
             ground.position.set(currentPos.x, currentPos.y, currentPos.z);
             ground.receiveShadow = true;
             ground.name = "Ground";
+            if (grounds.length == levels - 1) {
+                ground.name = "Final";
+            }
             grounds.push(ground);
-            console.log("Added Ground");
-            var roof = new Physijs.ConvexMesh(groundGeometry, groundPhysicsMaterial, 0);
-            roof.position.add(new Vector3(0, 4.5, 0));
-            scene.add(roof);
+            buildWall(currentPos, new Vector3(6.25, 2.5, 11.25));
+            buildWall(currentPos, new Vector3(-6.25, 2.5, 11.25));
+            buildWall(currentPos, new Vector3(6.25, 2.5, -11.25));
+            buildWall(currentPos, new Vector3(-6.25, 2.5, -11.25));
+            buildWall2(currentPos, new Vector3(11.25, 2.5, 6.25));
+            buildWall2(currentPos, new Vector3(-11.25, 2.5, 6.25));
+            buildWall2(currentPos, new Vector3(11.25, 2.5, -6.25));
+            buildWall2(currentPos, new Vector3(-11.25, 2.5, -6.25));
+            buildRoof(currentPos, new Vector3(0, 4.5, 0));
             if (grounds.length >= levels)
                 ready = false;
             else {
@@ -172,15 +176,12 @@ var game = (function () {
                         newPos.z -= 25;
                     for (var gnd = 0; gnd < grounds.length; gnd++) {
                         if (grounds[gnd].position.equals(newPos)) {
-                            console.log("Equals");
                             bang = true;
                         }
                     }
                     if (bang == false) {
                         directions.push(dir);
-                        console.log("Adding: " + currentPos.x + currentPos.y + currentPos.z);
                         currentPos = newPos;
-                        console.log(currentPos);
                         found = false;
                     }
                     else {
@@ -197,19 +198,14 @@ var game = (function () {
                 var tmpv3 = grounds[h].position.clone();
                 tmpv3.add(grounds[h + 1].position.clone());
                 tmpv3.multiplyScalar(0.5);
-                console.log(tmpv3);
                 groundTexture.repeat.set(5, 5);
                 groundMaterial.map = groundTexture;
                 groundGeometry = new BoxGeometry(5, 0.1, 5);
                 groundPhysicsMaterial = Physijs.createMaterial(groundMaterial, 0, 0);
                 ground = new Physijs.ConvexMesh(groundGeometry, groundPhysicsMaterial, 0);
                 ground.position.add(tmpv3.clone());
-                console.log(ground.position);
                 ground.receiveShadow = true;
                 ground.name = "Pathway";
-                var roof = new Physijs.ConvexMesh(groundGeometry, groundPhysicsMaterial, 0);
-                roof.position.add(new Vector3(0, 4.5, 0));
-                scene.add(roof);
                 scene.add(ground);
                 var v1 = grounds[h].position.clone();
                 var v2 = grounds[h + 1].position.clone();
@@ -224,9 +220,7 @@ var game = (function () {
             }
         }
         for (var k = 0; k < directions.length; k++) {
-            //console.log(directions[k]);
             if (k == 0 || k == directions.length) {
-                console.log(directions[k]);
                 switch (directions[k]) {
                     case 0:
                         buildBadPathway(new Vector3(-1, 0, 0), k);
@@ -253,9 +247,7 @@ var game = (function () {
             else {
                 var cur = directions[k];
                 var prev = directions[k - 1];
-                console.log("cur: " + cur + ", prev: " + prev);
                 if (cur == 0) {
-                    console.log("Using cur = 0");
                     if (prev == 1) {
                         buildBadPathway(new Vector3(0, 0, 1), k);
                         buildBadPathway(new Vector3(1, 0, 0), k);
@@ -270,7 +262,6 @@ var game = (function () {
                     }
                 }
                 if (cur == 1) {
-                    console.log("Using cur = 1");
                     if (prev == 1) {
                         buildBadPathway(new Vector3(-1, 0, 0), k);
                         buildBadPathway(new Vector3(1, 0, 0), k);
@@ -285,7 +276,6 @@ var game = (function () {
                     }
                 }
                 if (cur == 2) {
-                    console.log("using cur = 2");
                     if (prev == 1) {
                         buildBadPathway(new Vector3(0, 0, 1), k);
                         buildBadPathway(new Vector3(-1, 0, 0), k);
@@ -300,7 +290,6 @@ var game = (function () {
                     }
                 }
                 if (cur == 3) {
-                    console.log("using cur = 3");
                     if (prev == 0) {
                         buildBadPathway(new Vector3(0, 0, 1), k);
                         buildBadPathway(new Vector3(1, 0, 0), k);
@@ -326,7 +315,6 @@ var game = (function () {
         player.name = "Player";
         scene.add(player);
         player.add(camera);
-        console.log("Added Player to Scene");
         // Collision Check
         player.addEventListener('collision', function (event) {
             if (event.name === "Ground" || event.name === "Pathway") {
@@ -337,26 +325,46 @@ var game = (function () {
                 console.log("player hit the BadPath");
                 player.position = new Vector3(0, 0, 0);
             }
+            if (event.name === "badWall") {
+                console.log("Player hit the badwall");
+                createjs.Sound.play("tryagain", 0, 0, 0, 0, 0.25);
+            }
+            if (event.name === "Final") {
+                console.log("Player hit the final panel");
+                if (done == false) {
+                    done = true;
+                    createjs.Sound.play("walldone", 0, 0, 0, 0, 0.25);
+                }
+            }
         });
-        // Add DirectionLine
-        directionLineMaterial = new LineBasicMaterial({ color: 0xffff00 });
-        directionLineGeometry = new Geometry();
-        directionLineGeometry.vertices.push(new Vector3(0, 0, 0)); // line origin
-        directionLineGeometry.vertices.push(new Vector3(0, 0, -50)); // end of the line
-        directionLine = new Line(directionLineGeometry, directionLineMaterial);
-        player.add(directionLine);
-        console.log("Added DirectionLine to the Player");
-        // add controls
-        gui = new GUI();
-        control = new Control();
-        addControl(control);
         // Add framerate stats
         addStatsObject();
-        console.log("Added Stats to scene...");
         document.body.appendChild(renderer.domElement);
         gameLoop(); // render the scene	
         scene.simulate();
         window.addEventListener('resize', onWindowResize, false);
+    }
+    function buildRoof(currentPos, v3) {
+        var roof = new Physijs.ConvexMesh(new BoxGeometry(25, 0.1, 25), groundPhysicsMaterial, 0);
+        roof.position.set(currentPos.x, currentPos.y, currentPos.z);
+        roof.position.add(v3);
+        scene.add(roof);
+    }
+    function buildWall(currentPos, v3) {
+        var wallGeo = new BoxGeometry(7.5, 5, 2.5);
+        var wallMat = Physijs.createMaterial(groundMaterial, 0, 0);
+        var wall = new Physijs.BoxMesh(wallGeo, wallMat, 0);
+        wall.position.set(currentPos.x, currentPos.y, currentPos.z);
+        wall.position.add(v3);
+        scene.add(wall);
+    }
+    function buildWall2(currentPos, v3) {
+        var wallGeo = new BoxGeometry(2.5, 5, 7.5);
+        var wallMat = Physijs.createMaterial(groundMaterial, 0, 0);
+        var wall = new Physijs.BoxMesh(wallGeo, wallMat, 0);
+        wall.position.set(currentPos.x, currentPos.y, currentPos.z);
+        wall.position.add(v3);
+        scene.add(wall);
     }
     function buildBadPathway(v3, par) {
         var path = new BoxGeometry(5, 0.1, 5);
@@ -366,23 +374,17 @@ var game = (function () {
         gnd.position.add(v4);
         gnd.receiveShadow = true;
         gnd.name = "BadPath";
-        var roof = new Physijs.ConvexMesh(groundGeometry, Physijs.createMaterial(new LambertMaterial({ color: 0x000000 }), 0, 0), 0);
-        roof.position.add(new Vector3(0, 4.5, 0));
-        console.log("roof position: " + roof.position.x + ", " + roof.position.z);
-        scene.add(roof);
         var wall;
         if (v3.x != 0) {
             wall = new BoxGeometry(0.1, 10, 5);
-            console.log("Wall Z");
         }
         else if (v3.z != 0) {
             wall = new BoxGeometry(5, 10, 0.1);
-            console.log("Wall X");
         }
         var material = Physijs.createMaterial(new LambertMaterial({ color: 0x000000 }), 0, 0);
         var newgnd = new Physijs.ConvexMesh(wall, material, 0);
+        newgnd.name = "badWall";
         newgnd.position.add(v4);
-        console.log("getting ground position: " + newgnd.position.x + ", " + newgnd.position.z);
         scene.add(newgnd);
         scene.add(gnd);
     }
@@ -402,22 +404,17 @@ var game = (function () {
             blocker.style.display = '-moz-box';
             blocker.style.display = 'box';
             instructions.style.display = '';
-            console.log("PointerLock disabled");
         }
     }
     //PointerLockError Event Handler
     function pointerLockError(event) {
         instructions.style.display = '';
-        console.log("PointerLock Error Detected!!");
     }
     // Window Resize Event Handler
     function onWindowResize() {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
-    }
-    function addControl(controlObject) {
-        /* ENTER CODE for the GUI CONTROL HERE */
     }
     // Add Frame Rate Stats to the Scene
     function addStatsObject() {
@@ -438,25 +435,20 @@ var game = (function () {
             if (isGrounded) {
                 var direction = new Vector3(0, 0, 0);
                 if (keyboardControls.moveForward) {
-                    console.log("Moving Forward");
                     velocity.z -= 400.0 * delta;
                 }
                 if (keyboardControls.moveLeft) {
-                    console.log("Moving left");
                     velocity.x -= 400.0 * delta;
                 }
                 if (keyboardControls.moveBackward) {
-                    console.log("Moving Backward");
                     velocity.z += 400.0 * delta;
                 }
                 if (keyboardControls.moveRight) {
-                    console.log("Moving Right");
                     velocity.x += 400.0 * delta;
                 }
                 if (keyboardControls.jump) {
-                    console.log("Jumping");
                     velocity.y += 4000.0 * delta;
-                    if (player.position.y > 4) {
+                    if (player.position.y > 1.25) {
                         isGrounded = false;
                     }
                 }
@@ -493,16 +485,14 @@ var game = (function () {
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(CScreen.WIDTH, CScreen.HEIGHT);
         renderer.shadowMap.enabled = true;
-        console.log("Finished setting up Renderer...");
     }
     // Setup main camera for the scene
     function setupCamera() {
         camera = new PerspectiveCamera(35, config.Screen.RATIO, 0.1, 100);
         //camera.position.set(0, 10, 30);
         //camera.lookAt(new Vector3(0, 0, 0));
-        console.log("Finished setting up Camera...");
     }
-    window.onload = init;
+    window.onload = preload;
     return {
         scene: scene
     };
