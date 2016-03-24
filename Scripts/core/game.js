@@ -70,7 +70,6 @@ var game = (function () {
     var directionLine;
     var grounds;
     var directions;
-    var badPaths;
     function init() {
         // Create to HTMLElements
         blocker = document.getElementById("blocker");
@@ -140,12 +139,11 @@ var game = (function () {
         //build main areas
         grounds = [];
         directions = [];
-        badPaths = [];
         var currentPos = new Vector3();
         var ready = true;
-        var levels = 10;
+        var levels = 3;
         while (ready) {
-            groundGeometry = new BoxGeometry(20, 1, 20);
+            groundGeometry = new BoxGeometry(20, 0.1, 20);
             groundPhysicsMaterial = Physijs.createMaterial(groundMaterial, 0, 0);
             ground = new Physijs.ConvexMesh(groundGeometry, groundPhysicsMaterial, 0);
             ground.position.set(currentPos.x, currentPos.y, currentPos.z);
@@ -153,6 +151,9 @@ var game = (function () {
             ground.name = "Ground";
             grounds.push(ground);
             console.log("Added Ground");
+            var roof = new Physijs.ConvexMesh(groundGeometry, groundPhysicsMaterial, 0);
+            roof.position.add(new Vector3(0, 4.5, 0));
+            scene.add(roof);
             if (grounds.length >= levels)
                 ready = false;
             else {
@@ -199,47 +200,127 @@ var game = (function () {
                 console.log(tmpv3);
                 groundTexture.repeat.set(5, 5);
                 groundMaterial.map = groundTexture;
-                groundGeometry = new BoxGeometry(5, 1, 5);
+                groundGeometry = new BoxGeometry(5, 0.1, 5);
                 groundPhysicsMaterial = Physijs.createMaterial(groundMaterial, 0, 0);
                 ground = new Physijs.ConvexMesh(groundGeometry, groundPhysicsMaterial, 0);
                 ground.position.add(tmpv3.clone());
                 console.log(ground.position);
                 ground.receiveShadow = true;
                 ground.name = "Pathway";
+                var roof = new Physijs.ConvexMesh(groundGeometry, groundPhysicsMaterial, 0);
+                roof.position.add(new Vector3(0, 4.5, 0));
+                scene.add(roof);
                 scene.add(ground);
+                var v1 = grounds[h].position.clone();
+                var v2 = grounds[h + 1].position.clone();
+                var wall;
+                if (v1.x != v2.x)
+                    wall = new BoxGeometry(0.1, 10, 5);
+                else if (v1.z != v2.z)
+                    wall = new BoxGeometry(5, 10, 0.1);
+                var material = new LambertMaterial({ color: 0x000000 });
+                var mesh = new gameObject(wall, material, tmpv3.x, tmpv3.y, tmpv3.z);
+                scene.add(mesh);
             }
         }
         for (var k = 0; k < directions.length; k++) {
-            console.log(directions[k]);
-            console.log("first or last");
-            switch (directions[k]) {
-                case 0:
-                    buildBadPathway(new Vector3(-1, 0, 0), k);
-                    buildBadPathway(new Vector3(0, 0, 1), k);
-                    buildBadPathway(new Vector3(0, 0, -1), k);
-                    break;
-                case 1:
-                    buildBadPathway(new Vector3(0, 0, -1), k);
-                    buildBadPathway(new Vector3(1, 0, 0), k);
-                    buildBadPathway(new Vector3(-1, 0, 0), k);
-                    break;
-                case 2:
-                    buildBadPathway(new Vector3(1, 0, 0), k);
-                    buildBadPathway(new Vector3(0, 0, 1), k);
-                    buildBadPathway(new Vector3(0, 0, -1), k);
-                    break;
-                case 3:
-                    buildBadPathway(new Vector3(0, 0, 1), k);
-                    buildBadPathway(new Vector3(-1, 0, 0), k);
-                    buildBadPathway(new Vector3(1, 0, 0), k);
-                    break;
+            //console.log(directions[k]);
+            if (k == 0 || k == directions.length) {
+                console.log(directions[k]);
+                switch (directions[k]) {
+                    case 0:
+                        buildBadPathway(new Vector3(-1, 0, 0), k);
+                        buildBadPathway(new Vector3(0, 0, 1), k);
+                        buildBadPathway(new Vector3(0, 0, -1), k);
+                        break;
+                    case 1:
+                        buildBadPathway(new Vector3(0, 0, -1), k);
+                        buildBadPathway(new Vector3(1, 0, 0), k);
+                        buildBadPathway(new Vector3(-1, 0, 0), k);
+                        break;
+                    case 2:
+                        buildBadPathway(new Vector3(1, 0, 0), k);
+                        buildBadPathway(new Vector3(0, 0, 1), k);
+                        buildBadPathway(new Vector3(0, 0, -1), k);
+                        break;
+                    case 3:
+                        buildBadPathway(new Vector3(0, 0, 1), k);
+                        buildBadPathway(new Vector3(-1, 0, 0), k);
+                        buildBadPathway(new Vector3(1, 0, 0), k);
+                        break;
+                }
+            }
+            else {
+                var cur = directions[k];
+                var prev = directions[k - 1];
+                console.log("cur: " + cur + ", prev: " + prev);
+                if (cur == 0) {
+                    console.log("Using cur = 0");
+                    if (prev == 1) {
+                        buildBadPathway(new Vector3(0, 0, 1), k);
+                        buildBadPathway(new Vector3(1, 0, 0), k);
+                    }
+                    else if (prev == 0) {
+                        buildBadPathway(new Vector3(0, 0, 1), k);
+                        buildBadPathway(new Vector3(0, 0, -1), k);
+                    }
+                    else if (prev == 3) {
+                        buildBadPathway(new Vector3(0, 0, -1), k);
+                        buildBadPathway(new Vector3(-1, 0, 0), k);
+                    }
+                }
+                if (cur == 1) {
+                    console.log("Using cur = 1");
+                    if (prev == 1) {
+                        buildBadPathway(new Vector3(-1, 0, 0), k);
+                        buildBadPathway(new Vector3(1, 0, 0), k);
+                    }
+                    else if (prev == 0) {
+                        buildBadPathway(new Vector3(1, 0, 0), k);
+                        buildBadPathway(new Vector3(0, 0, -1), k);
+                    }
+                    else if (prev == 2) {
+                        buildBadPathway(new Vector3(0, 0, -1), k);
+                        buildBadPathway(new Vector3(-1, 0, 0), k);
+                    }
+                }
+                if (cur == 2) {
+                    console.log("using cur = 2");
+                    if (prev == 1) {
+                        buildBadPathway(new Vector3(0, 0, 1), k);
+                        buildBadPathway(new Vector3(-1, 0, 0), k);
+                    }
+                    else if (prev == 2) {
+                        buildBadPathway(new Vector3(0, 0, 1), k);
+                        buildBadPathway(new Vector3(0, 0, -1), k);
+                    }
+                    else if (prev == 3) {
+                        buildBadPathway(new Vector3(0, 0, -1), k);
+                        buildBadPathway(new Vector3(1, 0, 0), k);
+                    }
+                }
+                if (cur == 3) {
+                    console.log("using cur = 3");
+                    if (prev == 0) {
+                        buildBadPathway(new Vector3(0, 0, 1), k);
+                        buildBadPathway(new Vector3(1, 0, 0), k);
+                    }
+                    else if (prev == 2) {
+                        buildBadPathway(new Vector3(0, 0, 1), k);
+                        buildBadPathway(new Vector3(-1, 0, 0), k);
+                    }
+                    else if (prev == 3) {
+                        buildBadPathway(new Vector3(-1, 0, 0), k);
+                        buildBadPathway(new Vector3(1, 0, 0), k);
+                    }
+                }
             }
         }
         // Player Object
         playerGeometry = new BoxGeometry(2, 2, 2);
         playerMaterial = Physijs.createMaterial(new LambertMaterial({ color: 0x00ff00 }), 0.4, 0);
         player = new Physijs.BoxMesh(playerGeometry, playerMaterial, 1);
-        player.position.set(0, 30, 0);
+        player.position.set(0, 2.5, 0);
         player.receiveShadow = true;
         player.castShadow = true;
         player.name = "Player";
@@ -278,23 +359,31 @@ var game = (function () {
         window.addEventListener('resize', onWindowResize, false);
     }
     function buildBadPathway(v3, par) {
-        for (var scn = 0; scene.children.length; scn++) {
-            if (scene.children[scn] != null) {
-                console.log("check");
-                if (scene.children[scn].position.clone().equals(grounds[par].position.clone().add(v3.multiplyScalar(12.5)))) {
-                    console.log("Cloned, not making");
-                    return;
-                }
-            }
-        }
-        console.log("out of loop");
-        var path = new BoxGeometry(5, 1, 5);
+        var path = new BoxGeometry(5, 0.1, 5);
         var pathMat = Physijs.createMaterial(groundMaterial, 0, 0);
         var gnd = new Physijs.ConvexMesh(path, pathMat, 0);
-        gnd.position.add(grounds[par].position.clone().add(v3.multiplyScalar(12.5)));
+        var v4 = grounds[par].position.clone().add(v3.multiplyScalar(12.5));
+        gnd.position.add(v4);
         gnd.receiveShadow = true;
         gnd.name = "BadPath";
-        console.log("added path");
+        var roof = new Physijs.ConvexMesh(groundGeometry, Physijs.createMaterial(new LambertMaterial({ color: 0x000000 }), 0, 0), 0);
+        roof.position.add(new Vector3(0, 4.5, 0));
+        console.log("roof position: " + roof.position.x + ", " + roof.position.z);
+        scene.add(roof);
+        var wall;
+        if (v3.x != 0) {
+            wall = new BoxGeometry(0.1, 10, 5);
+            console.log("Wall Z");
+        }
+        else if (v3.z != 0) {
+            wall = new BoxGeometry(5, 10, 0.1);
+            console.log("Wall X");
+        }
+        var material = Physijs.createMaterial(new LambertMaterial({ color: 0x000000 }), 0, 0);
+        var newgnd = new Physijs.ConvexMesh(wall, material, 0);
+        newgnd.position.add(v4);
+        console.log("getting ground position: " + newgnd.position.x + ", " + newgnd.position.z);
+        scene.add(newgnd);
         scene.add(gnd);
     }
     //PointerLockChange Event Handler
