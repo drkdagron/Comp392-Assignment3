@@ -67,13 +67,21 @@ var game = (function () {
     var grounds;
     var directions;
     var done = false;
+    var final = false;
+    var bad = false;
+    var good = false;
     //createjs
     var assets;
     var canvas;
     var stage;
+    var score;
+    var timerz = 6000;
+    var scoreLabel;
+    var timeLabel;
     var manifest = [
         { id: "tryagain", src: "../../Assets/sounds/try_again.ogg" },
-        { id: "welldone", src: "../../Assets/sounds/well_done.ogg" }
+        { id: "welldone", src: "../../Assets/sounds/well_done.ogg" },
+        { id: "bgmusic", src: "../../Assets/sounds/lostwoods.mp3" }
     ];
     function preload() {
         assets = new createjs.LoadQueue();
@@ -110,6 +118,23 @@ var game = (function () {
             document.addEventListener('mozpointerlockerror', pointerLockError);
             document.addEventListener('webkitpointerlockerror', pointerLockError);
         }
+        createjs.Sound.play("bgmusic", createjs.Sound.INTERRUPT_NONE, 0, 0, -1, 0.1, 0);
+        //setup canvas for scoring
+        canvas = document.getElementById("canvas");
+        canvas.setAttribute("width", config.Screen.WIDTH.toString());
+        canvas.setAttribute("height", (config.Screen.HEIGHT * 0.1).toString());
+        canvas.style.backgroundColor = "#111111";
+        stage = new createjs.Stage(canvas);
+        score = 0;
+        scoreLabel = new createjs.Text("Score: " + score.toString(), "30px Consolas", "#EEEEEE");
+        scoreLabel.x = config.Screen.WIDTH * 0.3;
+        scoreLabel.y = (config.Screen.HEIGHT * 0.1) * 0.25;
+        stage.addChild(scoreLabel);
+        timerz = 6000;
+        timeLabel = new createjs.Text("Time Left: " + (timerz / 60).toFixed(1), "30px Consolas", "#EEEEEE");
+        timeLabel.x = config.Screen.WIDTH * 0.7;
+        timeLabel.y = (config.Screen.HEIGHT * 0.1) * 0.25;
+        stage.addChild(timeLabel);
         // Scene changes for Physijs
         scene.name = "Main";
         scene.fog = new THREE.Fog(0xffffff, 0, 750);
@@ -138,26 +163,32 @@ var game = (function () {
         var currentPos = new Vector3();
         var ready = true;
         var levels = 3;
+        var curSetup = 1;
+        var currentGround = 2;
         while (ready) {
             groundGeometry = new BoxGeometry(20, 0.1, 20);
             groundPhysicsMaterial = Physijs.createMaterial(groundMaterial, 0, 0);
             ground = new Physijs.ConvexMesh(groundGeometry, groundPhysicsMaterial, 0);
             ground.position.set(currentPos.x, currentPos.y, currentPos.z);
             ground.receiveShadow = true;
-            ground.name = "Ground";
+            ground.name = "Ground" + curSetup.toString();
+            curSetup++;
             if (grounds.length == levels - 1) {
-                ground.name = "Final";
+                ground.name = "Finish";
             }
+            console.log(ground.name);
             grounds.push(ground);
-            buildWall(currentPos, new Vector3(6.25, 2.5, 11.25));
-            buildWall(currentPos, new Vector3(-6.25, 2.5, 11.25));
-            buildWall(currentPos, new Vector3(6.25, 2.5, -11.25));
-            buildWall(currentPos, new Vector3(-6.25, 2.5, -11.25));
-            buildWall2(currentPos, new Vector3(11.25, 2.5, 6.25));
-            buildWall2(currentPos, new Vector3(-11.25, 2.5, 6.25));
-            buildWall2(currentPos, new Vector3(11.25, 2.5, -6.25));
-            buildWall2(currentPos, new Vector3(-11.25, 2.5, -6.25));
-            buildRoof(currentPos, new Vector3(0, 4.5, 0));
+            if (grounds.length != levels) {
+                buildWall(currentPos, new Vector3(6.25, 2.5, 11.25));
+                buildWall(currentPos, new Vector3(-6.25, 2.5, 11.25));
+                buildWall(currentPos, new Vector3(6.25, 2.5, -11.25));
+                buildWall(currentPos, new Vector3(-6.25, 2.5, -11.25));
+                buildWall2(currentPos, new Vector3(11.25, 2.5, 6.25));
+                buildWall2(currentPos, new Vector3(-11.25, 2.5, 6.25));
+                buildWall2(currentPos, new Vector3(11.25, 2.5, -6.25));
+                buildWall2(currentPos, new Vector3(-11.25, 2.5, -6.25));
+                buildRoof(currentPos, new Vector3(0, 4.5, 0));
+            }
             if (grounds.length >= levels)
                 ready = false;
             else {
@@ -205,7 +236,7 @@ var game = (function () {
                 ground = new Physijs.ConvexMesh(groundGeometry, groundPhysicsMaterial, 0);
                 ground.position.add(tmpv3.clone());
                 ground.receiveShadow = true;
-                ground.name = "Pathway";
+                ground.name = "GoodPath";
                 scene.add(ground);
                 var v1 = grounds[h].position.clone();
                 var v2 = grounds[h + 1].position.clone();
@@ -306,7 +337,7 @@ var game = (function () {
             }
         }
         // Player Object
-        playerGeometry = new BoxGeometry(2, 2, 2);
+        playerGeometry = new BoxGeometry(1, 2, 1);
         playerMaterial = Physijs.createMaterial(new LambertMaterial({ color: 0x00ff00 }), 0.4, 0);
         player = new Physijs.BoxMesh(playerGeometry, playerMaterial, 1);
         player.position.set(0, 2.5, 0);
@@ -317,23 +348,43 @@ var game = (function () {
         player.add(camera);
         // Collision Check
         player.addEventListener('collision', function (event) {
-            if (event.name === "Ground" || event.name === "Pathway") {
+            if (event.name === "Finish") {
+                console.log("Player hit the final panel");
+                createjs.Sound.play("welldone", 0, 0, 0, 0, 0.25);
+                if (good == true) {
+                    score += 5;
+                    good = false;
+                    score *= (timerz / 600);
+                    done = false;
+                }
+            }
+            else if (event.name === "GoodPath") {
+                console.log("Player hit the goodpath");
+                good = true;
+            }
+            else if (event.name === "badWall") {
+                console.log("Player hit the badwall");
+                if (bad == false) {
+                    bad = true;
+                    createjs.Sound.play("tryagain", 0, 0, 0, 0, 0.25);
+                    score--;
+                    console.log(score);
+                }
+            }
+            else if (event.name.search("Ground") != -1) {
                 console.log("player hit the ground");
                 isGrounded = true;
-            }
-            if (event.name === "BadPath") {
-                console.log("player hit the BadPath");
-                player.position = new Vector3(0, 0, 0);
-            }
-            if (event.name === "badWall") {
-                console.log("Player hit the badwall");
-                createjs.Sound.play("tryagain", 0, 0, 0, 0, 0.25);
-            }
-            if (event.name === "Final") {
-                console.log("Player hit the final panel");
+                bad = false;
                 if (done == false) {
-                    done = true;
-                    createjs.Sound.play("walldone", 0, 0, 0, 0, 0.25);
+                    console.log(currentGround.toString());
+                    if (event.name.search(currentGround.toString()) != -1) {
+                        console.log("player cur");
+                        if (good == true) {
+                            score += 5;
+                            good = false;
+                            currentGround++;
+                        }
+                    }
                 }
             }
         });
@@ -392,9 +443,16 @@ var game = (function () {
     function pointerLockChange(event) {
         if (document.pointerLockElement === element) {
             // enable our mouse and keyboard controls
-            keyboardControls.enabled = true;
-            mouseControls.enabled = true;
-            blocker.style.display = 'none';
+            if (timerz > 0) {
+                keyboardControls.enabled = true;
+                mouseControls.enabled = true;
+                blocker.style.display = 'none';
+                done = true;
+            }
+            else {
+                keyboardControls.enabled = false;
+                mouseControls.enabled = false;
+            }
         }
         else {
             // disable our mouse and keyboard controls
@@ -404,6 +462,7 @@ var game = (function () {
             blocker.style.display = '-moz-box';
             blocker.style.display = 'box';
             instructions.style.display = '';
+            done = false;
         }
     }
     //PointerLockError Event Handler
@@ -415,6 +474,12 @@ var game = (function () {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
+        canvas.style.width = '100%';
+        scoreLabel.x = config.Screen.WIDTH * 0.3;
+        scoreLabel.y = (config.Screen.HEIGHT * 0.1) * 0.25;
+        timeLabel.x = config.Screen.WIDTH * 0.3;
+        timeLabel.y = (config.Screen.HEIGHT * 0.1) * 0.25;
+        stage.update();
     }
     // Add Frame Rate Stats to the Scene
     function addStatsObject() {
@@ -428,6 +493,18 @@ var game = (function () {
     // Setup main game loop
     function gameLoop() {
         stats.update();
+        if (done == true) {
+            timerz--;
+            scoreLabel.text = "Score: " + score;
+            if (timerz > 0) {
+                timeLabel.text = "Time Left: " + (timerz / 60).toFixed(1);
+            }
+            else {
+                timeLabel.text = "GAME OVER!!!";
+                keyboardControls.enabled = false;
+                mouseControls.enabled = false;
+            }
+        }
         if (keyboardControls.enabled) {
             velocity = new Vector3();
             var time = performance.now();
@@ -465,6 +542,7 @@ var game = (function () {
         else {
             player.setAngularVelocity(new Vector3(0, 0, 0));
         }
+        stage.update();
         //cameraLook();
         prevTime = time;
         // render using requestAnimationFrame
